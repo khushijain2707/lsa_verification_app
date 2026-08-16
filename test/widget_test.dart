@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+
 import 'package:lsa_verification_app/controllers/verification_controller.dart';
 import 'package:lsa_verification_app/models/verification_status.dart';
 import 'package:lsa_verification_app/screens/lsa_verification_screen.dart';
@@ -12,7 +13,9 @@ class FakeHttpClient extends http.BaseClient {
   FakeHttpClient(this.responseFactory);
 
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+  Future<http.StreamedResponse> send(
+    http.BaseRequest request,
+  ) async {
     final response = responseFactory();
 
     return http.StreamedResponse(
@@ -36,155 +39,193 @@ void main() {
       controller.dispose();
     });
 
-    testWidgets('Test 1 - Screen loads correctly', (tester) async {
-      final client = FakeHttpClient(
-        () => http.Response(
-          '{"status":"success"}',
-          200,
-        ),
-      );
+    // --------------------------------------------------
+    // TEST 1 - VALID SUBMISSION
+    // --------------------------------------------------
 
-      final service = ComplianceService(
-        client: client,
-        controller: controller,
-      );
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LsaVerificationScreen(
-            controller: controller,
-            service: service,
+    testWidgets(
+      'Test 1 - Valid submission succeeds',
+      (tester) async {
+        final client = FakeHttpClient(
+          () => http.Response(
+            '{"status":"success"}',
+            200,
           ),
-        ),
-      );
+        );
 
-      expect(
-        find.text('LSA Onboarding Gate'),
-        findsOneWidget,
-      );
+        final service = ComplianceService(
+          client: client,
+          controller: controller,
+        );
 
-      expect(
-        find.text('HabotConnect Data Compliance'),
-        findsOneWidget,
-      );
-
-      expect(
-        find.text('LSA ID'),
-        findsOneWidget,
-      );
-
-      expect(
-        find.text('Verify & Submit'),
-        findsOneWidget,
-      );
-
-      expect(
-        controller.status.value,
-        VerificationStatus.idle,
-      );
-    });
-
-    testWidgets('Test 2 - Empty consent code is quarantined', (
-      tester,
-    ) async {
-      final client = FakeHttpClient(
-        () => http.Response(
-          '{"status":"success"}',
-          200,
-        ),
-      );
-
-      final service = ComplianceService(
-        client: client,
-        controller: controller,
-      );
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LsaVerificationScreen(
-            controller: controller,
-            service: service,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LsaVerificationScreen(
+              controller: controller,
+              service: service,
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.tap(
-        find.text('Verify & Submit'),
-      );
+        final consentField = find.byWidgetPredicate(
+          (widget) =>
+              widget is TextField &&
+              widget.controller == controller.consentController,
+        );
 
-      await tester.pump();
+        expect(consentField, findsOneWidget);
 
-      expect(
-        controller.status.value,
-        VerificationStatus.quarantined,
-      );
+        await tester.enterText(
+          consentField,
+          'PCC-2026-9901',
+        );
 
-      expect(
-        controller.consentController.text,
-        isEmpty,
-      );
-    });
+        await tester.tap(
+          find.text('Verify & Submit'),
+        );
 
-    testWidgets('Test 3 - API 500 response is quarantined', (
-      tester,
-    ) async {
-      final client = FakeHttpClient(
-        () => http.Response(
-          'Internal Server Error',
-          500,
-        ),
-      );
+        await tester.pumpAndSettle();
 
-      final service = ComplianceService(
-        client: client,
-        controller: controller,
-      );
+        expect(
+          controller.status.value,
+          VerificationStatus.success,
+        );
+      },
+    );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LsaVerificationScreen(
-            controller: controller,
-            service: service,
+    // --------------------------------------------------
+    // TEST 2 - MISSING LINEAGE
+    // --------------------------------------------------
+
+    testWidgets(
+      'Test 2 - Missing lineage is quarantined',
+      (tester) async {
+        bool apiCalled = false;
+
+        final client = FakeHttpClient(
+          () {
+            apiCalled = true;
+
+            return http.Response(
+              '{"status":"success"}',
+              200,
+            );
+          },
+        );
+
+        final service = ComplianceService(
+          client: client,
+          controller: controller,
+          predecessorId: '',
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LsaVerificationScreen(
+              controller: controller,
+              service: service,
+            ),
           ),
-        ),
-      );
+        );
 
-      final consentField = find.byWidgetPredicate(
-        (widget) =>
-            widget is TextField &&
-            widget.controller == controller.consentController,
-      );
+        final consentField = find.byWidgetPredicate(
+          (widget) =>
+              widget is TextField &&
+              widget.controller == controller.consentController,
+        );
 
-      expect(
-        consentField,
-        findsOneWidget,
-      );
+        await tester.enterText(
+          consentField,
+          'PCC-2026-9901',
+        );
 
-      await tester.enterText(
-        consentField,
-        'PCC-2026-9901',
-      );
+        await tester.tap(
+          find.text('Verify & Submit'),
+        );
 
-      expect(
-        controller.consentController.text,
-        'PCC-2026-9901',
-      );
+        await tester.pump();
 
-      await tester.tap(
-        find.text('Verify & Submit'),
-      );
+        expect(
+          controller.status.value,
+          VerificationStatus.quarantined,
+        );
 
-      await tester.pumpAndSettle();
+        expect(
+          controller.consentController.text,
+          isEmpty,
+        );
 
-      expect(
-        controller.status.value,
-        VerificationStatus.quarantined,
-      );
+        // Fail-closed:
+        // API must NOT be called when lineage is invalid.
+        expect(apiCalled, isFalse);
+      },
+    );
 
-      expect(
-        controller.consentController.text,
-        isEmpty,
-      );
-    });
+    // --------------------------------------------------
+    // TEST 3 - API 500
+    // --------------------------------------------------
+
+    testWidgets(
+      'Test 3 - API 500 response is quarantined',
+      (tester) async {
+        final client = FakeHttpClient(
+          () => http.Response(
+            'Internal Server Error',
+            500,
+          ),
+        );
+
+        final service = ComplianceService(
+          client: client,
+          controller: controller,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LsaVerificationScreen(
+              controller: controller,
+              service: service,
+            ),
+          ),
+        );
+
+        final consentField = find.byWidgetPredicate(
+          (widget) =>
+              widget is TextField &&
+              widget.controller == controller.consentController,
+        );
+
+        expect(
+          consentField,
+          findsOneWidget,
+        );
+
+        await tester.enterText(
+          consentField,
+          'PCC-2026-9901',
+        );
+
+        expect(
+          controller.consentController.text,
+          'PCC-2026-9901',
+        );
+
+        await tester.tap(
+          find.text('Verify & Submit'),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          controller.status.value,
+          VerificationStatus.quarantined,
+        );
+
+        expect(
+          controller.consentController.text,
+          isEmpty,
+        );
+      },
+    );
   });
 }

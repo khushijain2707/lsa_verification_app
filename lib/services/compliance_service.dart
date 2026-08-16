@@ -24,10 +24,14 @@ class ComplianceService {
 
   static const String lsaId = 'LSA-7049';
 
-  static const String predecessorId = 'PRED-9982-XYZ';
+  // Expected system-controlled predecessor ID.
+  static const String expectedPredecessorId = 'PRED-9982-XYZ';
 
   final http.Client client;
   final VerificationController controller;
+
+  // Allows tests to simulate missing/invalid lineage.
+  final String predecessorId;
 
   // Demo mode is controlled from main.dart.
   final bool demoMode;
@@ -35,6 +39,7 @@ class ComplianceService {
   ComplianceService({
     required this.client,
     required this.controller,
+    this.predecessorId = expectedPredecessorId,
     this.demoMode = false,
   });
 
@@ -42,7 +47,8 @@ class ComplianceService {
     final consentCode =
         controller.consentController.text.trim();
 
-    // FAIL-CLOSED: validate before any network request.
+    // FAIL-CLOSED:
+    // Validate lineage before any network request.
     if (!_isValidLineage(predecessorId)) {
       _quarantine();
       return;
@@ -164,7 +170,7 @@ class ComplianceService {
 
   bool _isValidLineage(String value) {
     return value.trim().isNotEmpty &&
-        value == predecessorId;
+        value == expectedPredecessorId;
   }
 
   void _quarantine() {
