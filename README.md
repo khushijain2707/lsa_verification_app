@@ -26,6 +26,10 @@ The main screen is implemented as a `StatelessWidget` and uses `ValueNotifier` a
 
 [▶️ Watch Project Demo](https://drive.google.com/file/d/1MNnRxb6zQrjuVEUtsjUXbm10AB2ZZ8dF/view?usp=drive_link)
 
+## 🎨 Figma Design
+
+[🔗 View Figma Design](https://www.figma.com/design/yef4biugqpCrAiyqOH15Mn/LSA-Verification?node-id=21-133&t=Hd7S1vQJg6P2tinv-1)
+
 ## Features
 
 - LSA ID displayed as read-only
