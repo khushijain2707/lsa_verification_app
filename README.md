@@ -22,6 +22,10 @@ The main screen is implemented as a `StatelessWidget` and uses `ValueNotifier` a
 
 ---
 
+## 🎥 Demo Video
+
+[▶️ Watch Project Demo](https://drive.google.com/file/d/1MNnRxb6zQrjuVEUtsjUXbm10AB2ZZ8dF/view?usp=drive_link)
+
 ## Features
 
 - LSA ID displayed as read-only
@@ -65,7 +69,8 @@ Processing
   +---- Invalid / 500 / Timeout / Malformed
                               |
                               v
-                    Data Quarantined ```
+                    Data Quarantined
+ ```
 ---
 ## API Integration
 
@@ -90,9 +95,8 @@ POST `https://api.habotconnect.com/v1/compliance/verify`
 Content-Type: application/json
 x-trace-id: UUID v4
 x-logic-hash: SHA-256 hash
-
-The `x-logic-hash` is generated from the JSON request body.
 ```
+The `x-logic-hash` is generated from the JSON request body.
 
 ---
 
@@ -174,7 +178,7 @@ The three tests cover:
 1. Valid submission
 2. Invalid lineage
 3. API 500 failure
-
+```
 ---
 
 ## Project Structure
